@@ -1,0 +1,85 @@
+{% extends 'base.html' %}
+{% block title %}Parking Receipt — SmartPark ITS{% endblock %}
+
+{% block content %}
+<section class="receipt-section">
+    <div class="receipt-card glass" id="receiptCard">
+
+        <!-- Receipt Header -->
+        <div class="receipt-header">
+            <div class="receipt-logo">
+                <i class="fas fa-parking"></i>
+                <span>SmartPark ITS</span>
+            </div>
+            <div class="receipt-title">Parking Receipt</div>
+            <div class="receipt-id"># {{ '%06d'|format(booking['id']) }}</div>
+        </div>
+
+        <!-- Success Check -->
+        <div class="receipt-success-icon">
+            <i class="fas fa-check-circle"></i>
+        </div>
+        <h2 class="receipt-tagline">All Done! Thank You.</h2>
+
+        <!-- Details Grid -->
+        <div class="receipt-details">
+            <div class="rdetail-row">
+                <span class="rdetail-label"><i class="fas fa-user"></i> Name</span>
+                <span class="rdetail-val">{{ booking['user_name'] }}</span>
+            </div>
+            <div class="rdetail-row">
+                <span class="rdetail-label"><i class="fas fa-envelope"></i> Email</span>
+                <span class="rdetail-val">{{ booking['user_email'] }}</span>
+            </div>
+            <div class="rdetail-row">
+                <span class="rdetail-label"><i class="fas fa-parking"></i> Slot</span>
+                <span class="rdetail-val">{{ booking['slot_number'] }}</span>
+            </div>
+            <div class="rdetail-row">
+                <span class="rdetail-label"><i class="fas fa-map-marker-alt"></i> Location</span>
+                <span class="rdetail-val">{{ booking['location'] }}</span>
+            </div>
+            <div class="rdetail-row">
+                <span class="rdetail-label"><i class="fas fa-id-card"></i> Vehicle</span>
+                <span class="rdetail-val">{{ booking['vehicle_number'] }}</span>
+            </div>
+            <div class="rdetail-row">
+                <span class="rdetail-label"><i class="fas fa-sign-in-alt"></i> Entry Time</span>
+                <span class="rdetail-val">{{ booking['start_time'] }}</span>
+            </div>
+            <div class="rdetail-row">
+                <span class="rdetail-label"><i class="fas fa-sign-out-alt"></i> Exit Time</span>
+                <span class="rdetail-val">{{ booking['end_time'] }}</span>
+            </div>
+            <div class="rdetail-row">
+                <span class="rdetail-label"><i class="fas fa-stopwatch"></i> Duration</span>
+                <span class="rdetail-val">
+                    {% set h = booking['duration_minutes'] // 60 %}
+                    {% set m = booking['duration_minutes'] % 60 %}
+                    {% if h > 0 %}{{ h }}h {% endif %}{{ m }}min
+                </span>
+            </div>
+            <div class="rdetail-row">
+                <span class="rdetail-label"><i class="fas fa-rupee-sign"></i> Rate</span>
+                <span class="rdetail-val">₹{{ booking['rate_per_hour']|int }}/hr</span>
+            </div>
+        </div>
+
+        <!-- Total Cost Highlight -->
+        <div class="receipt-total">
+            <span>Total Amount</span>
+            <span class="total-amount">₹{{ '%.2f'|format(booking['total_cost']) }}</span>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="btn-row receipt-actions">
+            <button onclick="window.print()" class="btn btn-outline">
+                <i class="fas fa-print"></i> Print Receipt
+            </button>
+            <a href="{{ url_for('dashboard') }}" class="btn btn-primary">
+                <i class="fas fa-th-large"></i> Back to Dashboard
+            </a>
+        </div>
+    </div>
+</section>
+{% endblock %}

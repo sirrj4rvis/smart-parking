@@ -1,0 +1,83 @@
+{% extends 'base.html' %}
+{% block title %}My Bookings — SmartPark ITS{% endblock %}
+
+{% block content %}
+<section class="dashboard-section">
+    <div class="page-header">
+        <div>
+            <h1><i class="fas fa-history"></i> My Booking History</h1>
+            <p>All your past and active parking sessions.</p>
+        </div>
+    </div>
+
+    {% if bookings %}
+    <div class="table-wrapper glass">
+        <table class="data-table" id="bookingsTable">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Slot</th>
+                    <th>Location</th>
+                    <th>Vehicle No.</th>
+                    <th>Entry Time</th>
+                    <th>Exit Time</th>
+                    <th>Duration</th>
+                    <th>Cost</th>
+                    <th>Status</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for b in bookings %}
+                <tr>
+                    <td>{{ '%06d'|format(b['id']) }}</td>
+                    <td><strong>{{ b['slot_number'] }}</strong></td>
+                    <td>{{ b['location'] }}</td>
+                    <td>{{ b['vehicle_number'] }}</td>
+                    <td>{{ b['start_time'] }}</td>
+                    <td>{{ b['end_time'] or '—' }}</td>
+                    <td>
+                        {% if b['duration_minutes'] %}
+                            {% set h = b['duration_minutes'] // 60 %}
+                            {% set m = b['duration_minutes'] % 60 %}
+                            {% if h > 0 %}{{ h }}h {% endif %}{{ m }}min
+                        {% else %}
+                            Active
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if b['total_cost'] %}
+                            ₹{{ '%.2f'|format(b['total_cost']) }}
+                        {% else %}
+                            —
+                        {% endif %}
+                    </td>
+                    <td>
+                        <span class="badge badge-{{ b['status'] }}">{{ b['status']|capitalize }}</span>
+                    </td>
+                    <td>
+                        {% if b['status'] == 'completed' %}
+                            <a href="{{ url_for('receipt', booking_id=b['id']) }}" class="btn btn-sm btn-outline">
+                                <i class="fas fa-receipt"></i> Receipt
+                            </a>
+                        {% else %}
+                            <span class="text-muted">In Progress</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <i class="fas fa-parking empty-icon"></i>
+        <h3>No Bookings Yet</h3>
+        <p>You haven't made any bookings. Find a slot and park now!</p>
+        <a href="{{ url_for('dashboard') }}" class="btn btn-primary">
+            <i class="fas fa-th-large"></i> View Parking Slots
+        </a>
+    </div>
+    {% endif %}
+</section>
+{% endblock %}

@@ -1,0 +1,123 @@
+{% extends 'base.html' %}
+{% block title %}Admin Dashboard — SmartPark ITS{% endblock %}
+
+{% block content %}
+<section class="dashboard-section">
+
+    <div class="page-header">
+        <div>
+            <h1><i class="fas fa-tachometer-alt"></i> Admin Dashboard</h1>
+            <p>System overview and quick statistics.</p>
+        </div>
+    </div>
+
+    <!-- Stats Cards -->
+    <div class="admin-stats-grid">
+        <div class="astat-card glass" style="border-left: 4px solid #6366f1">
+            <div class="astat-icon" style="color:#6366f1"><i class="fas fa-parking"></i></div>
+            <div class="astat-info">
+                <div class="astat-num">{{ total_slots }}</div>
+                <div class="astat-label">Total Slots</div>
+            </div>
+        </div>
+        <div class="astat-card glass" style="border-left: 4px solid #10b981">
+            <div class="astat-icon" style="color:#10b981"><i class="fas fa-check-circle"></i></div>
+            <div class="astat-info">
+                <div class="astat-num">{{ avail_slots }}</div>
+                <div class="astat-label">Available</div>
+            </div>
+        </div>
+        <div class="astat-card glass" style="border-left: 4px solid #ef4444">
+            <div class="astat-icon" style="color:#ef4444"><i class="fas fa-times-circle"></i></div>
+            <div class="astat-info">
+                <div class="astat-num">{{ total_slots - avail_slots }}</div>
+                <div class="astat-label">Occupied</div>
+            </div>
+        </div>
+        <div class="astat-card glass" style="border-left: 4px solid #f59e0b">
+            <div class="astat-icon" style="color:#f59e0b"><i class="fas fa-users"></i></div>
+            <div class="astat-info">
+                <div class="astat-num">{{ total_users }}</div>
+                <div class="astat-label">Registered Users</div>
+            </div>
+        </div>
+        <div class="astat-card glass" style="border-left: 4px solid #8b5cf6">
+            <div class="astat-icon" style="color:#8b5cf6"><i class="fas fa-calendar-alt"></i></div>
+            <div class="astat-info">
+                <div class="astat-num">{{ total_books }}</div>
+                <div class="astat-label">Total Bookings</div>
+            </div>
+        </div>
+        <div class="astat-card glass" style="border-left: 4px solid #06b6d4">
+            <div class="astat-icon" style="color:#06b6d4"><i class="fas fa-rupee-sign"></i></div>
+            <div class="astat-info">
+                <div class="astat-num">₹{{ '%.0f'|format(revenue) }}</div>
+                <div class="astat-label">Total Revenue</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Links -->
+    <div class="admin-quick-links">
+        <a href="{{ url_for('manage_slots') }}" class="qlink glass">
+            <i class="fas fa-layer-group"></i>
+            <span>Manage Slots</span>
+        </a>
+        <a href="{{ url_for('all_bookings') }}" class="qlink glass">
+            <i class="fas fa-list-alt"></i>
+            <span>All Bookings</span>
+        </a>
+        <a href="{{ url_for('dashboard') }}" class="qlink glass">
+            <i class="fas fa-th-large"></i>
+            <span>Slot Grid View</span>
+        </a>
+    </div>
+
+    <!-- Recent Bookings -->
+    <div class="admin-section-header">
+        <h2>Recent Bookings</h2>
+        <a href="{{ url_for('all_bookings') }}" class="btn btn-outline btn-sm">View All</a>
+    </div>
+
+    {% if recent_books %}
+    <div class="table-wrapper glass">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>User</th>
+                    <th>Slot</th>
+                    <th>Vehicle</th>
+                    <th>Start Time</th>
+                    <th>Status</th>
+                    <th>Cost</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for b in recent_books %}
+                <tr>
+                    <td>{{ '%06d'|format(b['id']) }}</td>
+                    <td>{{ b['user_name'] }}</td>
+                    <td><strong>{{ b['slot_number'] }}</strong></td>
+                    <td>{{ b['vehicle_number'] }}</td>
+                    <td>{{ b['start_time'] }}</td>
+                    <td>
+                        <span class="badge badge-{{ b['status'] }}">{{ b['status']|capitalize }}</span>
+                    </td>
+                    <td>
+                        {% if b['total_cost'] %}₹{{ '%.2f'|format(b['total_cost']) }}{% else %}—{% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <i class="fas fa-inbox empty-icon"></i>
+        <h3>No Bookings Yet</h3>
+        <p>Bookings will appear here once users start parking.</p>
+    </div>
+    {% endif %}
+</section>
+{% endblock %}

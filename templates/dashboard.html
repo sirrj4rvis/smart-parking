@@ -1,0 +1,129 @@
+{% extends 'base.html' %}
+{% block title %}Parking Dashboard — SmartPark ITS{% endblock %}
+
+{% block content %}
+<section class="dashboard-section">
+
+    <!-- Page Header -->
+    <div class="page-header">
+        <div>
+            <h1><i class="fas fa-th-large"></i> Parking Dashboard</h1>
+            <p>Hello, <strong>{{ session.get('name') }}</strong> — Select a green slot to book your spot.</p>
+        </div>
+        <div class="header-actions">
+            <button class="btn btn-outline btn-sm" id="refreshBtn" onclick="refreshSlots()">
+                <i class="fas fa-sync-alt" id="refreshIcon"></i> Refresh
+            </button>
+        </div>
+    </div>
+
+    <!-- Legend -->
+    <div class="legend-bar">
+        <span class="legend-item">
+            <span class="legend-dot dot-available"></span> Available
+        </span>
+        <span class="legend-item">
+            <span class="legend-dot dot-occupied"></span> Occupied
+        </span>
+        <span class="legend-item">
+            <span class="legend-dot dot-mine"></span> Your Booking
+        </span>
+    </div>
+
+    <!-- Active Booking Banner -->
+    {% if active_booking %}
+    <div class="active-booking-banner glass">
+        <div class="active-left">
+            <div class="pulse-dot"></div>
+            <div>
+                <strong>Active Booking — Slot {{ active_booking['slot_number'] }}</strong>
+                <br>
+                <small>Vehicle: {{ active_booking['vehicle_number'] }} &nbsp;|&nbsp;
+                Started: {{ active_booking['start_time'] }}</small>
+            </div>
+        </div>
+        <div class="active-right">
+            <div class="live-timer" id="liveTimer" data-start="{{ active_booking['start_time'] }}">
+                Calculating...
+            </div>
+            <form method="POST" action="{{ url_for('exit_slot', booking_id=active_booking['id']) }}"
+                  onsubmit="return confirm('Confirm exit and calculate your parking cost?')">
+                <button type="submit" class="btn btn-danger btn-sm" id="exitBtn">
+                    <i class="fas fa-sign-out-alt"></i> Exit & Pay
+                </button>
+            </form>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Filter Tabs -->
+    <div class="filter-tabs">
+        <button class="filter-tab active" data-filter="all" onclick="filterSlots('all', this)">
+            All Slots
+        </button>
+        <button class="filter-tab" data-filter="car" onclick="filterSlots('car', this)">
+            <i class="fas fa-car"></i> Cars
+        </button>
+        <button class="filter-tab" data-filter="bike" onclick="filterSlots('bike', this)">
+            <i class="fas fa-motorcycle"></i> Bikes
+        </button>
+        <button class="filter-tab" data-filter="truck" onclick="filterSlots('truck', this)">
+            <i class="fas fa-truck"></i> Trucks
+        </button>
+    </div>
+
+    <!-- Parking Slots Grid -->
+    <div class="slots-grid" id="slotsGrid">
+        {% for slot in slots %}
+        <div class="slot-card {{ slot['status'] }}
+                    {% if active_booking and active_booking['slot_id'] == slot['id'] %}mine{% endif %}"
+             data-vehicle="{{ slot['vehicle_type'] }}"
+             data-slot-id="{{ slot['id'] }}"
+             id="slot-{{ slot['id'] }}">
+
+            <!-- Slot Number -->
+            <div class="slot-number">{{ slot['slot_number'] }}</div>
+
+            <!-- Vehicle type icon -->
+            <div class="slot-vehicle-icon">
+                {% if slot['vehicle_type'] == 'car' %}
+                    <i class="fas fa-car"></i>
+                {% elif slot['vehicle_type'] == 'bike' %}
+                    <i class="fas fa-motorcycle"></i>
+                {% else %}
+                    <i class="fas fa-truck"></i>
+                {% endif %}
+            </div>
+
+            <!-- Status badge -->
+            <div class="slot-status-badge">
+                {% if slot['status'] == 'available' %}
+                    <span class="badge badge-available">Available</span>
+                {% else %}
+                    <span class="badge badge-occupied">Occupied</span>
+                {% endif %}
+            </div>
+
+            <!-- Location & rate -->
+            <div class="slot-info">
+                <small><i class="fas fa-map-marker-alt"></i> {{ slot['location'] }}</small>
+                <small><i class="fas fa-rupee-sign"></i> ₹{{ slot['rate_per_hour']|int }}/hr</small>
+            </div>
+
+            <!-- Book button (only if available and no active booking) -->
+            {% if slot['status'] == 'available' and not active_booking %}
+                <a href="{{ url_for('book_slot', slot_id=slot['id']) }}"
+                   class="btn btn-book" id="bookBtn-{{ slot['id'] }}">
+                    <i class="fas fa-plus"></i> Book Slot
+                </a>
+            {% elif active_booking and active_booking['slot_id'] == slot['id'] %}
+                <span class="your-slot-label">Your Slot</span>
+            {% else %}
+                <span class="slot-unavail-label">Unavailable</span>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+
+</section>
+{% endblock %}

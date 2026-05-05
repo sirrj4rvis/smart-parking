@@ -1,0 +1,78 @@
+{% extends 'base.html' %}
+{% block title %}Book Slot {{ slot['slot_number'] }} — SmartPark ITS{% endblock %}
+
+{% block content %}
+<section class="auth-section">
+    <div class="auth-card glass booking-card">
+
+        <!-- Slot Preview -->
+        <div class="booking-slot-preview available">
+            <div class="preview-number">{{ slot['slot_number'] }}</div>
+            <div class="preview-type">
+                {% if slot['vehicle_type'] == 'car' %}
+                    <i class="fas fa-car"></i> Car Slot
+                {% elif slot['vehicle_type'] == 'bike' %}
+                    <i class="fas fa-motorcycle"></i> Bike Slot
+                {% else %}
+                    <i class="fas fa-truck"></i> Truck Slot
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="auth-header">
+            <h1>Book Your Slot</h1>
+            <p>Slot <strong>{{ slot['slot_number'] }}</strong> · {{ slot['location'] }}</p>
+        </div>
+
+        <!-- Slot Info Table -->
+        <div class="booking-info-table">
+            <div class="binfo-row">
+                <span><i class="fas fa-map-marker-alt"></i> Location</span>
+                <span>{{ slot['location'] }}</span>
+            </div>
+            <div class="binfo-row">
+                <span><i class="fas fa-car"></i> Vehicle Type</span>
+                <span class="capitalize">{{ slot['vehicle_type'] }}</span>
+            </div>
+            <div class="binfo-row">
+                <span><i class="fas fa-rupee-sign"></i> Rate</span>
+                <span>₹{{ slot['rate_per_hour']|int }} / hour</span>
+            </div>
+            <div class="binfo-row">
+                <span><i class="fas fa-clock"></i> Billing</span>
+                <span>Minimum 1 hour</span>
+            </div>
+        </div>
+
+        <!-- Booking Form -->
+        <form method="POST" action="{{ url_for('book_slot', slot_id=slot['id']) }}" class="auth-form">
+            <div class="form-group">
+                <label for="vehicle_number">
+                    <i class="fas fa-id-card"></i> Vehicle Number
+                </label>
+                <input
+                    type="text"
+                    id="vehicle_number"
+                    name="vehicle_number"
+                    class="form-input"
+                    placeholder="e.g. KA01AB1234"
+                    required
+                    maxlength="15"
+                    style="text-transform: uppercase;"
+                    oninput="this.value = this.value.toUpperCase()"
+                >
+                <small class="form-hint">Enter your vehicle registration number</small>
+            </div>
+
+            <div class="btn-row">
+                <a href="{{ url_for('dashboard') }}" class="btn btn-outline">
+                    <i class="fas fa-arrow-left"></i> Cancel
+                </a>
+                <button type="submit" class="btn btn-primary" id="confirmBookBtn">
+                    <i class="fas fa-check-circle"></i> Confirm Booking
+                </button>
+            </div>
+        </form>
+    </div>
+</section>
+{% endblock %}
