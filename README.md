@@ -115,3 +115,6 @@ Example: 45 min at ₹30/hr → 1 hour billed → **₹30**
 | Database | SQLite3            |
 | Icons    | Font Awesome 6     |
 | Fonts    | Google Fonts Inter |
+
+
+aryan
