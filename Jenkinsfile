@@ -68,8 +68,10 @@ pipeline {
                     passwordVariable: 'DOCKER_PASS'
         )]) {
 
-             bat 'echo %DOCKER_PASS% | "C:\\Program Files\\Docker\\Docker\\resources\\bin\\docker.exe" login -u %DOCKER_USER% --password-stdin'
-             bat '"C:\\Program Files\\Docker\\Docker\\resources\\bin\\docker.exe" push sirrj4rvis/smart-parking'
+            bat '''
+            "C:\\Program Files\\Docker\\Docker\\resources\\bin\\docker.exe" login -u %DOCKER_USER% -p %DOCKER_PASS%
+            "C:\\Program Files\\Docker\\Docker\\resources\\bin\\docker.exe" push sirrj4rvis/smart-parking
+            '''
         }
     }
 }
