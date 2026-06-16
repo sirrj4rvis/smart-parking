@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     environment {
-        DOCKER_IMAGE = "sirrj4rvis/smart-parking"
+        DOCKER_IMAGE = "sirrj4rvis/smartpark-its"
     }
 
     stages {
@@ -11,7 +11,7 @@ pipeline {
             steps {
                 git branch: 'main',
                 credentialsId: 'github-token',
-                url: 'https://github.com/sirrj4rvis/smart-parking.git'
+                url: 'https://github.com/sirrj4rvis/SmartPark-ITS.git'
             }
         }
 
