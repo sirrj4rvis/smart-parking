@@ -14,7 +14,14 @@
 [![Tests](https://img.shields.io/badge/tests-pytest%20%E2%9C%93-success?style=for-the-badge)](tests/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](LICENSE)
 
+[![Live Demo](https://img.shields.io/badge/▶_Live_Demo-smartpark--its.onrender.com-success?style=for-the-badge)](https://smartpark-its.onrender.com)
+[![API Docs](https://img.shields.io/badge/API_Docs-Swagger_UI-85EA2D?style=for-the-badge&logo=swagger&logoColor=black)](https://smartpark-its.onrender.com/api/docs)
+
 </div>
+
+> **🔗 Live demo:** **<https://smartpark-its.onrender.com>** · **API docs:** [`/api/docs`](https://smartpark-its.onrender.com/api/docs)
+> Demo admin login — `admin@parking.com` / `admin123`.
+> *Hosted on a free tier, so the first request may take ~30–60s to wake the instance.*
 
 ---
 
