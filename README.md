@@ -115,6 +115,17 @@ wsgi.py · celery_worker.py · config.py · migrations/ · tests/ · docker-comp
 
 ## 🚀 Quick Start
 
+**Three ways to run it — pick one:**
+
+| Mode | What to do | Stack |
+|------|-----------|-------|
+| 🌐 **Live demo** | Just open **[smartpark-its.onrender.com](https://smartpark-its.onrender.com)** — nothing to install | Render + Neon + Upstash |
+| ⚡ **Local — quick** | `python wsgi.py` → http://localhost:5000 | SQLite + in-memory (zero infra) |
+| 🐳 **Local — full** | `docker compose up --build` → http://localhost:5000 | Postgres + Redis + Celery |
+
+> Admin login (all modes): **`admin@parking.com` / `admin123`**.
+> The live free instance sleeps when idle — the **first request takes ~30–60s to wake**, then it's fast.
+
 ### Option A — Full stack with Docker Compose (Postgres + Redis + worker + beat)
 ```bash
 # A SECRET_KEY is required (compose refuses to start without one — by design).
