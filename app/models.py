@@ -58,6 +58,12 @@ class BookingStatus(_StrEnum):
     cancelled = "cancelled"
 
 
+class PaymentStatus(_StrEnum):
+    created = "created"
+    paid = "paid"
+    failed = "failed"
+
+
 class User(db.Model):
     __tablename__ = "users"
 
@@ -238,3 +244,36 @@ class Booking(db.Model):
             "total_cost": self.total_cost,
             "status": self.status.value,
         }
+
+
+class Payment(db.Model):
+    """A payment for a completed booking (Razorpay order, or mock in dev)."""
+    __tablename__ = "payments"
+
+    id = db.Column(db.Integer, primary_key=True)
+    booking_id = db.Column(db.Integer, db.ForeignKey("bookings.id"), nullable=False, unique=True, index=True)
+    provider = db.Column(db.String(32), nullable=False, default="mock")
+    order_id = db.Column(db.String(80), nullable=False, unique=True, index=True)
+    payment_ref = db.Column(db.String(80), nullable=True)  # provider payment id
+    amount = db.Column(db.Float, nullable=False)           # major units (₹)
+    currency = db.Column(db.String(8), nullable=False, default="INR")
+    status = db.Column(db.Enum(PaymentStatus), nullable=False, default=PaymentStatus.created, index=True)
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow)
+
+    booking = db.relationship("Booking", backref=db.backref("payment", uselist=False))
+
+    def to_dict(self):
+        return {
+            "id": self.id, "booking_id": self.booking_id, "provider": self.provider,
+            "order_id": self.order_id, "amount": self.amount, "currency": self.currency,
+            "status": self.status.value,
+        }
+
+
+class WebhookEvent(db.Model):
+    """Idempotency ledger — each provider event id is processed at most once."""
+    __tablename__ = "webhook_events"
+
+    event_id = db.Column(db.String(120), primary_key=True)
+    provider = db.Column(db.String(32), nullable=False)
+    received_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow)

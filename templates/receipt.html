@@ -71,6 +71,44 @@
             <span class="total-amount">₹{{ '%.2f'|format(booking['total_cost']) }}</span>
         </div>
 
+        {% if payment %}
+        <div class="payment-box" style="margin:1.25rem 0;text-align:center;">
+            {% if payment.status == 'paid' %}
+                <div class="badge badge-available" style="font-size:.85rem;padding:.5rem 1rem;">
+                    <i class="fas fa-circle-check"></i> Paid · {{ payment.payment_ref or payment.order_id }}
+                </div>
+            {% elif pay_provider == 'razorpay' %}
+                <button id="rzpPay" class="btn btn-primary btn-full">
+                    <i class="fas fa-credit-card"></i> Pay ₹{{ '%.2f'|format(payment.amount) }}
+                </button>
+                <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+                <script>
+                  document.getElementById('rzpPay').onclick = function () {
+                    new window.Razorpay({
+                      key: "{{ pay_key }}",
+                      amount: {{ (payment.amount * 100)|int }},
+                      currency: "{{ payment.currency }}",
+                      name: "SmartPark ITS",
+                      description: "Parking fee · booking #{{ '%06d'|format(booking['id']) }}",
+                      order_id: "{{ payment.order_id }}",
+                      theme: { color: "#7b61ff" }
+                    }).open();
+                  };
+                </script>
+            {% else %}
+                <form method="POST" action="{{ url_for('payments.mock_confirm', order_id=payment.order_id) }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="btn btn-primary btn-full">
+                        <i class="fas fa-credit-card"></i> Pay ₹{{ '%.2f'|format(payment.amount) }} (Demo)
+                    </button>
+                    <small class="text-muted" style="display:block;margin-top:.5rem;">
+                        Sandbox payment — configure Razorpay keys for live checkout.
+                    </small>
+                </form>
+            {% endif %}
+        </div>
+        {% endif %}
+
         {% if qr %}
         <div class="receipt-qr" style="text-align:center;margin:1.25rem 0;">
             <img src="{{ qr }}" alt="Receipt QR" width="140" height="140" style="border-radius:8px;background:#fff;padding:6px;">

@@ -63,6 +63,7 @@ def create_app(config_object=None):
     from .blueprints.admin import admin_bp
     from .blueprints.api import api_v1_bp, docs_bp
     from .blueprints.errors import register_error_handlers
+    from .blueprints.payments import payments_bp, pay_webhook_bp
     from .legacy_api import legacy_bp
 
     app.register_blueprint(public_bp)
@@ -71,6 +72,8 @@ def create_app(config_object=None):
     app.register_blueprint(admin_bp)
     app.register_blueprint(api_v1_bp)
     app.register_blueprint(docs_bp)
+    app.register_blueprint(payments_bp)
+    app.register_blueprint(pay_webhook_bp)
     app.register_blueprint(legacy_bp)
     register_error_handlers(app)
 

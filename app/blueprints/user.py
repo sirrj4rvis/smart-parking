@@ -4,7 +4,13 @@ from flask import Blueprint, flash, redirect, render_template, request, url_for
 from ..extensions import db
 from ..models import Booking, BookingStatus, ParkingSlot
 from ..security import current_user, login_required
-from ..services import booking_service, forecast_service, notification_service, slot_service
+from ..services import (
+    booking_service,
+    forecast_service,
+    notification_service,
+    payment_service,
+    slot_service,
+)
 from ..realtime import broadcast_slots
 
 user_bp = Blueprint("user", __name__)
@@ -55,6 +61,10 @@ def exit_slot(booking_id):
     try:
         booking = booking_service.exit_booking(user.id, booking_id)
         broadcast_slots()
+        try:
+            payment_service.create_payment_for_booking(booking)
+        except payment_service.PaymentError:
+            pass  # zero-cost edge case
         notification_service.notify(user.email, "Parking receipt", f"Total {booking.total_cost}")
         flash("You have exited successfully. Here is your receipt.", "success")
         return redirect(url_for("user.receipt", booking_id=booking.id))
@@ -74,7 +84,12 @@ def receipt(booking_id):
         flash("Receipt not found.", "danger")
         return redirect(url_for("user.dashboard"))
     qr = notification_service.receipt_qr_data_uri(booking)
-    return render_template("receipt.html", booking=booking, qr=qr)
+    payment = booking.payment
+    pay_provider = payment_service.get_provider()
+    return render_template(
+        "receipt.html", booking=booking, qr=qr, payment=payment,
+        pay_key=pay_provider.public_key, pay_provider=pay_provider.name,
+    )
 
 
 @user_bp.route("/my_bookings")

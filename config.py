@@ -71,6 +71,11 @@ class BaseConfig:
     PRICING_SURGE_MAX = float(os.environ.get("PRICING_SURGE_MAX", 2.0))
     PRICING_SURGE_THRESHOLD = float(os.environ.get("PRICING_SURGE_THRESHOLD", 0.6))
 
+    # --- Payments (Razorpay) ---
+    RAZORPAY_KEY_ID = os.environ.get("RAZORPAY_KEY_ID")
+    RAZORPAY_KEY_SECRET = os.environ.get("RAZORPAY_KEY_SECRET")
+    RAZORPAY_WEBHOOK_SECRET = os.environ.get("RAZORPAY_WEBHOOK_SECRET", "whsec_dev_secret")
+
     # --- Observability ---
     SENTRY_DSN = os.environ.get("SENTRY_DSN")
     LOG_LEVEL = os.environ.get("LOG_LEVEL", "INFO")
