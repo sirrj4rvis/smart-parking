@@ -28,8 +28,9 @@ USER appuser
 EXPOSE 5000
 
 HEALTHCHECK --interval=30s --timeout=4s --start-period=15s --retries=3 \
-    CMD python -c "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:5000/healthz').status==200 else 1)"
+    CMD python -c "import os,urllib.request,sys; p=os.environ.get('PORT','5000'); sys.exit(0 if urllib.request.urlopen(f'http://127.0.0.1:{p}/healthz').status==200 else 1)"
 
+# Shell form so $PORT (injected by Render/Heroku/etc.) is honored; defaults to 5000.
 # gthread worker supports Flask-SocketIO (threading async mode) + normal HTTP.
-CMD ["gunicorn", "--worker-class", "gthread", "--threads", "8", "-w", "1", \
-     "--bind", "0.0.0.0:5000", "--access-logfile", "-", "wsgi:application"]
+CMD gunicorn --worker-class gthread --threads 8 -w 1 \
+    --bind 0.0.0.0:${PORT:-5000} --access-logfile - wsgi:application
