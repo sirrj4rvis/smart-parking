@@ -67,7 +67,7 @@
             </label>
             <div class="admin-form-grid">
                 <div class="form-group">
-                    <label for="pricing_surge_threshold">Surge threshold (occupancy 0–1)</label>
+                    <label for="pricing_surge_threshold">Surge threshold (0–1)</label>
                     <input type="number" step="0.05" min="0" max="1" id="pricing_surge_threshold"
                            name="pricing_surge_threshold" class="form-input" value="{{ system.pricing_surge_threshold }}">
                 </div>
@@ -108,5 +108,7 @@
   .settings-card h2 i { color: var(--brand-2); }
   .settings-card .auth-form { gap: 1rem; }
   .toggle-row input[type=checkbox] { width: 18px; height: 18px; accent-color: var(--brand); }
+  /* Reserve consistent label height so inputs in the grid stay aligned even if a label wraps. */
+  .settings-card .admin-form-grid .form-group label { min-height: 2.4em; display: flex; align-items: flex-end; }
 </style>
 {% endblock %}
