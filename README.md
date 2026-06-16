@@ -49,23 +49,42 @@ It is intentionally engineered to production standards — not as a CRUD demo, b
 
 ## 🏛️ Architecture
 
-```
-                      ┌────────────────────────── Clients ──────────────────────────┐
-                      │   Browser (Jinja + Socket.IO)        REST consumers (JWT)     │
-                      └───────────────┬───────────────────────────────┬──────────────┘
-                                      │ HTTP / WebSocket               │ /api/v1 (JWT)
-                          ┌───────────▼───────────────────────────────▼───────────┐
-                          │                 Flask (app factory)                    │
-                          │  Blueprints: public · auth · user · admin · api · ops  │
-                          │  Extensions: SQLAlchemy · Migrate · WTF/CSRF · Limiter │
-                          │              · Caching · SocketIO · JWT                 │
-                          │  Services:  booking · slot · pricing · forecast · …    │
-                          └───┬───────────────┬───────────────┬──────────────┬─────┘
-                              │               │               │              │
-                       ┌──────▼─────┐  ┌──────▼─────┐  ┌──────▼─────┐  ┌─────▼──────┐
-                       │ PostgreSQL │  │   Redis    │  │  Celery    │  │  Sentry /  │
-                       │ (+Alembic) │  │ cache·pub  │  │ worker+beat│  │ Prometheus │
-                       └────────────┘  └────────────┘  └────────────┘  └────────────┘
+```mermaid
+flowchart TB
+    subgraph Clients
+        BR["🌐 Browser<br/>Jinja + Socket.IO"]
+        AP["🔌 API clients<br/>JWT"]
+    end
+
+    subgraph Edge["Gunicorn · gevent WebSocket workers"]
+        FL["⚙️ Flask app factory · WhiteNoise<br/><b>Blueprints</b> public · auth · user · admin · api/v1 · ops<br/><b>Services</b> booking · slot · pricing · forecast · payment · anpr · geo"]
+    end
+
+    subgraph Data["Data & Infra"]
+        PG[("🐘 PostgreSQL<br/>+ Alembic")]
+        RD[("🧠 Redis<br/>cache · pub/sub · rate-limit · queue")]
+    end
+
+    subgraph Async["Background"]
+        CW["🔧 Celery worker"]
+        CB["⏰ Celery beat<br/>RedBeat"]
+    end
+
+    subgraph Obs["Observability"]
+        PM["📈 Prometheus"]
+        GF["📊 Grafana"]
+        SN["🛰️ Sentry"]
+    end
+
+    BR -->|HTTP / WebSocket| FL
+    AP -->|/api/v1 JWT| FL
+    FL --> PG
+    FL <-->|live slot push| RD
+    CW --> PG
+    CW --> RD
+    CB --> RD
+    FL --> PM --> GF
+    FL --> SN
 ```
 
 **Layout**
@@ -150,6 +169,28 @@ curl -X POST localhost:5000/api/v1/bookings -H "Authorization: Bearer $TOKEN" \
 
 Two drivers tapping "Book A1" at the same instant **cannot** both succeed:
 
+```mermaid
+sequenceDiagram
+    participant A as Driver A
+    participant B as Driver B
+    participant S as booking_service
+    participant DB as PostgreSQL
+
+    par Simultaneous requests
+        A->>S: POST /book (slot 1)
+    and
+        B->>S: POST /book (slot 1)
+    end
+    S->>DB: SELECT … FOR UPDATE (slot 1)
+    Note over DB: row locked — B's txn waits
+    S->>DB: INSERT active booking (A)
+    DB-->>S: OK · partial unique index satisfied
+    S-->>A: 201 Booked ✅
+    S->>DB: INSERT active booking (B)
+    DB-->>S: IntegrityError · unique index violated
+    S-->>B: 409 "that slot was just taken" 🚫
+```
+
 1. `SELECT … FOR UPDATE` locks the slot row (PostgreSQL), serializing contenders.
 2. A **partial unique index** is the hard backstop:
    ```sql
@@ -197,25 +238,33 @@ docker compose up                        # app + db + redis + worker + beat + pr
 - **Design docs:** [system design](docs/architecture.md) + [ADRs](docs/adr/).
 - The **Jenkins** pipeline gates on tests, then SonarCloud → Trivy → Docker → push → deploy:
 
-```
-GitHub → Tests (pytest, gated) → SonarCloud → Trivy → Docker build → DockerHub → Render
+```mermaid
+flowchart LR
+    G["📥 GitHub push"] --> T["✅ pytest<br/>coverage gate"]
+    T --> S["🔍 SonarCloud"]
+    S --> V["🛡️ Trivy scan"]
+    V --> D["🐳 Docker build"]
+    D --> H["📦 Docker Hub"]
+    H --> R["🚀 Render deploy"]
 ```
 
 ---
 
 ## 🛠️ Tech Stack
 
-**Backend** Python 3.11 · Flask 3 (app factory + blueprints) · SQLAlchemy 2 · Alembic
-**Data/Infra** PostgreSQL · Redis · Celery (worker + beat)
-**Realtime/API** Flask-SocketIO (gevent WebSocket worker) · Flask-JWT-Extended · OpenAPI/Swagger
-**Security** Werkzeug hashing · Flask-WTF (CSRF) · Flask-Limiter · login lockout
-**Payments / Vision** Razorpay (HMAC webhooks) · OpenCV + Tesseract (ANPR)
-**Geo** Leaflet + OpenStreetMap · Haversine (PostGIS-ready)
-**Observability** structured logging · Sentry · Prometheus · Grafana
-**Testing** pytest · pytest-cov · testcontainers · Locust
-**Frontend** Jinja2 · vanilla JS · Chart.js · Socket.IO client · Space Grotesk/DM Sans dark UI
-**Serving/Scale** Gunicorn (gevent WebSocket worker) · WhiteNoise · RedBeat · tuned SQLAlchemy pool
-**DevOps** Docker (multi-stage, non-root) · docker-compose · Jenkins · SonarCloud · Trivy · Render
+| Layer | Technologies |
+|-------|--------------|
+| **Backend** | Python 3.11 · Flask 3 (app factory + blueprints) · SQLAlchemy 2 · Alembic |
+| **Data & Infra** | PostgreSQL 16 · Redis 7 · Celery (worker + beat) |
+| **Realtime & API** | Flask-SocketIO (gevent WebSocket worker) · Flask-JWT-Extended · OpenAPI / Swagger |
+| **Security** | Werkzeug password hashing · Flask-WTF (CSRF) · Flask-Limiter · login lockout |
+| **Payments & Vision** | Razorpay (HMAC-verified webhooks) · OpenCV + Tesseract (ANPR) |
+| **Geospatial** | Leaflet + OpenStreetMap · Haversine distance (PostGIS-ready) |
+| **Serving & Scale** | Gunicorn (gevent WebSocket worker) · WhiteNoise · RedBeat · tuned SQLAlchemy pool |
+| **Observability** | Structured JSON logging · Sentry · Prometheus · Grafana |
+| **Testing** | pytest · pytest-cov · testcontainers · Locust |
+| **Frontend** | Jinja2 · vanilla JS · Chart.js · Socket.IO client · custom dark UI (Space Grotesk / DM Sans) |
+| **DevOps & CI/CD** | Docker (multi-stage, non-root) · docker-compose · Jenkins · SonarCloud · Trivy · Render |
 
 ---
 
