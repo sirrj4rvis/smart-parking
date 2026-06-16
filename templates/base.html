@@ -67,12 +67,12 @@
 <!-- ===== Flash Messages ===== -->
 {% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}
-        <div class="flash-container">
+        <div class="flash-container" aria-live="assertive">
             {% for category, message in messages %}
-                <div class="flash flash-{{ category }}">
+                <div class="flash flash-{{ category }}" role="alert">
                     <i class="fas fa-{% if category == 'success' %}check-circle{% elif category == 'danger' %}exclamation-circle{% elif category == 'warning' %}exclamation-triangle{% else %}info-circle{% endif %}"></i>
                     {{ message }}
-                    <button class="flash-close" onclick="this.parentElement.remove()">×</button>
+                    <button class="flash-close" onclick="this.parentElement.remove()" aria-label="Dismiss">×</button>
                 </div>
             {% endfor %}
         </div>

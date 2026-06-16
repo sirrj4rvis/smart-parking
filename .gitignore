@@ -33,3 +33,6 @@ test-results.xml
 
 # Load test reports
 loadtest/report*
+
+# TestSprite scratch (contains the API key in config.json) — never commit
+testsprite_tests/tmp/

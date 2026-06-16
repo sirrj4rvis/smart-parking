@@ -25,6 +25,7 @@ from sqlalchemy.exc import IntegrityError
 from ...extensions import csrf, db, limiter
 from ...models import Booking, Role, User
 from ...security import authenticate
+from ...validators import is_valid_email
 from ...services import (
     analytics_service,
     anpr_service,
@@ -55,6 +56,8 @@ def api_register():
     password = data.get("password") or ""
     if not name or not email or len(password) < 8:
         return jsonify({"error": "name, email and a password (min 8 chars) are required"}), 400
+    if not is_valid_email(email):
+        return jsonify({"error": "a valid email address is required"}), 400
     user = User(name=name, email=email, role=Role.user)
     user.set_password(password)
     db.session.add(user)

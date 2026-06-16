@@ -17,10 +17,15 @@ Note: write-heavy numbers should be gathered against PostgreSQL; SQLite serializ
 writers and will report lock contention under high concurrency (by design).
 """
 import random
+import time
 
-from locust import HttpUser, between, task
+from locust import HttpUser, between, events, task
 
 VEHICLES = [f"KA0{random.randint(1,9)}AB{random.randint(1000,9999)}" for _ in range(50)]
+
+# The single slot every HotSlotBooker fights over, to stress the row-lock +
+# unique-index concurrency guarantee under load.
+HOT_SLOT_ID = 1
 
 
 class AnonymousBrowser(HttpUser):
@@ -102,3 +107,80 @@ class ApiDriver(HttpUser):
                     headers=self._auth(),
                     name="POST /api/v1/bookings/[id]/exit",
                 )
+
+
+class HotSlotBooker(ApiDriver):
+    """Everyone fights over ONE slot — directly stresses the SELECT FOR UPDATE +
+    partial-unique-index guarantee. Almost all attempts should return 409
+    (designed contention), with at most one 201 winner at a time."""
+
+    weight = 1
+
+    @task
+    def contend_for_hot_slot(self):
+        if not self.token:
+            return
+        with self.client.post(
+            "/api/v1/bookings",
+            json={"slot_id": HOT_SLOT_ID, "vehicle_number": random.choice(VEHICLES)},
+            headers=self._auth(),
+            name=f"POST /api/v1/bookings [HOT slot {HOT_SLOT_ID}]",
+            catch_response=True,
+        ) as r:
+            # 201 = won the slot; 409 = lost the race (expected, not an error).
+            if r.status_code in (201, 409):
+                r.success()
+            else:
+                r.failure(f"unexpected {r.status_code}")
+            if r.status_code == 201:
+                booking_id = r.json().get("id")
+                self.client.post(
+                    f"/api/v1/bookings/{booking_id}/exit",
+                    headers=self._auth(),
+                    name="POST /api/v1/bookings/[id]/exit",
+                )
+
+
+class SocketIOClient(HttpUser):
+    """Exercises the real-time transport: open a Socket.IO connection, subscribe
+    to the slots room, and wait for the snapshot push. Surfaces WebSocket/
+    long-polling cost that pure HTTP tasks miss. Requires python-socketio
+    (already a project dependency)."""
+
+    weight = 2
+    wait_time = between(2, 6)
+
+    @task
+    def connect_and_subscribe(self):
+        try:
+            import socketio  # python-socketio client
+        except ImportError:
+            return
+        sio = socketio.Client(reconnection=False)
+        got = {"snapshot": False}
+
+        @sio.on("slot_snapshot")
+        def _on_snapshot(_data):
+            got["snapshot"] = True
+
+        start = time.time()
+        exc = None
+        try:
+            sio.connect(self.host, transports=["websocket"], wait_timeout=5)
+            sio.emit("subscribe_slots")
+            sio.sleep(1)  # let the snapshot arrive
+        except Exception as e:  # connection/transport failure
+            exc = e
+        finally:
+            try:
+                sio.disconnect()
+            except Exception:
+                pass
+
+        events.request.fire(
+            request_type="WSS",
+            name="socket.io connect+subscribe",
+            response_time=int((time.time() - start) * 1000),
+            response_length=0,
+            exception=exc if exc else (None if got["snapshot"] else Exception("no snapshot")),
+        )

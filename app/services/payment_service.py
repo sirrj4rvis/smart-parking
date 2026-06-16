@@ -17,6 +17,7 @@ import secrets
 from urllib.parse import quote
 
 from flask import current_app
+from sqlalchemy.exc import IntegrityError
 
 from ..extensions import db
 from ..models import Booking, Payment, PaymentStatus, WebhookEvent
@@ -167,7 +168,13 @@ def handle_webhook_event(event: dict) -> str:
         if payment and payment.status != PaymentStatus.paid:
             payment.status = PaymentStatus.paid
             payment.payment_ref = payment_ref
-    db.session.commit()
+    try:
+        db.session.commit()
+    except IntegrityError:
+        # Two concurrent deliveries of the same event raced past the get() check;
+        # the WebhookEvent PK collision means the other one won — treat as dup.
+        db.session.rollback()
+        return "duplicate"
     return "processed"
 
 

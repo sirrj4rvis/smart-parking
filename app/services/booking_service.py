@@ -18,7 +18,7 @@ from sqlalchemy.exc import IntegrityError
 
 from ..extensions import db
 from ..models import Booking, BookingStatus, ParkingSlot, SlotStatus, as_utc, utcnow
-from . import pricing_service
+from . import pricing_service, slot_service
 
 
 class BookingError(Exception):
@@ -58,6 +58,7 @@ def reserve_slot(user_id: int, slot_id: int) -> ParkingSlot:
     slot.status = SlotStatus.reserved
     slot.reserved_until = utcnow() + timedelta(minutes=ttl)
     db.session.commit()
+    slot_service.invalidate_availability()
     return slot
 
 
@@ -99,6 +100,7 @@ def book_slot(user_id: int, slot_id: int, vehicle_number: str) -> Booking:
         raise BookingError("That slot was just taken. Please pick another.")
 
     pricing_service.reprice_all()
+    slot_service.invalidate_availability()
     return booking
 
 
@@ -128,6 +130,7 @@ def exit_booking(user_id: int, booking_id: int) -> Booking:
     db.session.commit()
 
     pricing_service.reprice_all()
+    slot_service.invalidate_availability()
     return booking
 
 
@@ -144,4 +147,5 @@ def sweep_expired_reservations() -> int:
         slot.reserved_until = None
     if expired:
         db.session.commit()
+        slot_service.invalidate_availability()
     return len(expired)

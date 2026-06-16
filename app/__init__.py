@@ -36,6 +36,17 @@ def create_app(config_object=None):
     limiter.init_app(app)
     socketio.init_app(app, message_queue=app.config.get("SOCKETIO_MESSAGE_QUEUE"))
 
+    # Serve /static/ via WhiteNoise so static assets don't tie up request
+    # workers, with long-lived cache headers. Outermost layer for HTTP.
+    try:
+        from whitenoise import WhiteNoise
+
+        app.wsgi_app = WhiteNoise(
+            app.wsgi_app, root=app.static_folder, prefix="static/", max_age=2592000
+        )
+    except ImportError:  # whitenoise optional in minimal dev installs
+        app.logger.warning("whitenoise not installed; Flask will serve static files")
+
     # --- logging & observability ---
     from .logging_config import configure_logging
     from .observability import init_observability

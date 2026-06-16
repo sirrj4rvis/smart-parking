@@ -37,9 +37,12 @@ class BaseConfig:
         "sqlite:///" + os.path.join(os.path.dirname(__file__), "database.db")
     )
     SQLALCHEMY_TRACK_MODIFICATIONS = False
+    # SQLite-safe defaults (these args are accepted by every pool class, so the
+    # dev/test SQLite engines keep working). Production layers on real pool
+    # sizing in ProductionConfig, where the backend is guaranteed to be Postgres.
     SQLALCHEMY_ENGINE_OPTIONS = {
         "pool_pre_ping": True,
-        "pool_recycle": 280,
+        "pool_recycle": int(os.environ.get("DB_POOL_RECYCLE", 280)),
     }
 
     # --- Redis (cache, rate-limit, socket.io message queue, celery broker) ---
@@ -119,10 +122,31 @@ class ProductionConfig(BaseConfig):
     ENV_NAME = "production"
     SESSION_COOKIE_SECURE = _bool("SESSION_COOKIE_SECURE", True)
 
+    # Real connection pool for concurrent load. Keep
+    # (pool_size + max_overflow) * web/worker processes under Postgres
+    # max_connections; front Postgres with PgBouncer at high scale.
+    SQLALCHEMY_ENGINE_OPTIONS = {
+        "pool_size": int(os.environ.get("DB_POOL_SIZE", 10)),
+        "max_overflow": int(os.environ.get("DB_MAX_OVERFLOW", 20)),
+        "pool_timeout": int(os.environ.get("DB_POOL_TIMEOUT", 30)),
+        "pool_pre_ping": True,
+        "pool_recycle": int(os.environ.get("DB_POOL_RECYCLE", 280)),
+    }
+
     def __init__(self):
         # Fail fast: never run prod with the insecure default secret.
         if self.SECRET_KEY.startswith("dev-only-insecure-key-change-me"):
             raise RuntimeError("SECRET_KEY must be set in production")
+        # Fail fast: refuse to silently fall back to a local SQLite file in
+        # production — that loses all data on every container restart.
+        if not os.environ.get("DATABASE_URL"):
+            raise RuntimeError("DATABASE_URL is required in production")
+        if self.SQLALCHEMY_DATABASE_URI.startswith("sqlite"):
+            raise RuntimeError("Refusing to run production on SQLite — set a Postgres DATABASE_URL")
+        # Redis backs cache, rate-limit storage, the Socket.IO message queue and
+        # the Celery broker. Without it, cross-worker broadcasts silently break.
+        if not os.environ.get("REDIS_URL"):
+            raise RuntimeError("REDIS_URL is required in production")
 
 
 _CONFIGS = {

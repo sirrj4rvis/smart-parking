@@ -91,9 +91,14 @@ wsgi.py · celery_worker.py · config.py · migrations/ · tests/ · docker-comp
 
 ### Option A — Full stack with Docker Compose (Postgres + Redis + worker + beat)
 ```bash
+# A SECRET_KEY is required (compose refuses to start without one — by design).
+export SECRET_KEY=$(python -c "import secrets; print(secrets.token_urlsafe(48))")   # Windows PowerShell: $env:SECRET_KEY=...
 docker compose up --build
 # → http://localhost:5000   (admin: admin@parking.com / admin123)
 ```
+The web container runs Gunicorn with a **gevent WebSocket worker** (native
+WebSockets + high connection concurrency); emits fan out across workers via the
+Redis message queue.
 
 ### Option B — Local (zero infra; SQLite + in-memory cache)
 ```bash
@@ -103,7 +108,10 @@ flask --app wsgi seed          # create schema + demo data
 python wsgi.py                 # → http://localhost:5000
 ```
 
-> With no `DATABASE_URL`/`REDIS_URL` set, the app falls back to SQLite + in-memory cache so it boots with **zero configuration**. Set them (see [.env.example](.env.example)) to use Postgres/Redis.
+> With no `DATABASE_URL`/`REDIS_URL` set, the app falls back to SQLite + in-memory cache so it boots with **zero configuration**. Set them (see [.env.example](.env.example)) to use Postgres/Redis. In **production** (`FLASK_ENV=production`) the app *refuses* to start without a real `DATABASE_URL` and `REDIS_URL` — it never silently runs on SQLite.
+
+### Deploy it free
+Ship to a public URL on free tiers (Render + Neon + Upstash) — see **[DEPLOY_FREE.md](DEPLOY_FREE.md)**.
 
 ---
 
@@ -154,6 +162,24 @@ This is proven by a test that bypasses the service layer and asserts the **datab
 
 ---
 
+## 📈 Scalability & Production Readiness
+
+Engineered to scale horizontally by configuration, not rewrites:
+
+| Concern | How it's handled |
+|---------|------------------|
+| **WSGI / WebSockets** | Gunicorn **gevent WebSocket worker** — native WebSockets + thousands of connections/worker. `WEB_CONCURRENCY` workers fan out via the Redis message queue (use a sticky-session LB across instances). |
+| **DB connection pool** | Tuned Postgres pool (`pool_size`/`max_overflow`/`pool_timeout` + `pre_ping`/`recycle`), env-tunable; pair with a pooled endpoint / PgBouncer at scale. |
+| **Read-heavy availability** | Short-TTL Redis cache on the hot availability read, invalidated in the service layer on every booking / reservation / slot change. |
+| **Fail-fast config** | In production the app refuses to boot without `DATABASE_URL` + `REDIS_URL` and rejects a SQLite fallback or an insecure `SECRET_KEY` — no silent data-loss misconfigs. |
+| **Background jobs** | Celery tasks with retry/back-off + broker reconnection; **RedBeat** (Redis-backed) scheduler survives restarts. |
+| **Static assets** | Served by **WhiteNoise** with long-lived cache headers, off the request workers. |
+| **Health** | `/healthz` verifies Postgres (hard) and Redis (reported) so a load balancer sees real dependency state. |
+
+Sizing guidance and a free-tier deploy are in **[DEPLOY_FREE.md](DEPLOY_FREE.md)**.
+
+---
+
 ## ✅ Quality, Testing & Observability
 
 ```bash
@@ -181,13 +207,14 @@ GitHub → Tests (pytest, gated) → SonarCloud → Trivy → Docker build → D
 
 **Backend** Python 3.11 · Flask 3 (app factory + blueprints) · SQLAlchemy 2 · Alembic
 **Data/Infra** PostgreSQL · Redis · Celery (worker + beat)
-**Realtime/API** Flask-SocketIO · Flask-JWT-Extended · OpenAPI/Swagger
+**Realtime/API** Flask-SocketIO (gevent WebSocket worker) · Flask-JWT-Extended · OpenAPI/Swagger
 **Security** Werkzeug hashing · Flask-WTF (CSRF) · Flask-Limiter · login lockout
 **Payments / Vision** Razorpay (HMAC webhooks) · OpenCV + Tesseract (ANPR)
 **Geo** Leaflet + OpenStreetMap · Haversine (PostGIS-ready)
 **Observability** structured logging · Sentry · Prometheus · Grafana
 **Testing** pytest · pytest-cov · testcontainers · Locust
 **Frontend** Jinja2 · vanilla JS · Chart.js · Socket.IO client · Space Grotesk/DM Sans dark UI
+**Serving/Scale** Gunicorn (gevent WebSocket worker) · WhiteNoise · RedBeat · tuned SQLAlchemy pool
 **DevOps** Docker (multi-stage, non-root) · docker-compose · Jenkins · SonarCloud · Trivy · Render
 
 ---
