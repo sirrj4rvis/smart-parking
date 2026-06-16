@@ -12,6 +12,19 @@ def _bool(name: str, default: bool = False) -> bool:
     return os.environ.get(name, str(default)).lower() in ("1", "true", "yes", "on")
 
 
+def _normalize_db_url(url: str) -> str:
+    """Managed providers (Render/Heroku) hand out postgres:// or postgresql://
+    URLs, which SQLAlchemy maps to the (uninstalled) psycopg2 driver. We use
+    psycopg v3, so rewrite the scheme to postgresql+psycopg://."""
+    if not url:
+        return url
+    if url.startswith("postgres://"):
+        url = "postgresql://" + url[len("postgres://"):]
+    if url.startswith("postgresql://"):
+        url = "postgresql+psycopg://" + url[len("postgresql://"):]
+    return url
+
+
 class BaseConfig:
     # --- Core ---
     SECRET_KEY = os.environ.get("SECRET_KEY", "dev-only-insecure-key-change-me-0123456789")
@@ -20,8 +33,8 @@ class BaseConfig:
     # --- Database ---
     # DATABASE_URL example: postgresql+psycopg://user:pass@host:5432/smartpark
     # Falls back to a local SQLite file so the app always boots with zero config.
-    SQLALCHEMY_DATABASE_URI = os.environ.get(
-        "DATABASE_URL", "sqlite:///" + os.path.join(os.path.dirname(__file__), "database.db")
+    SQLALCHEMY_DATABASE_URI = _normalize_db_url(os.environ.get("DATABASE_URL", "")) or (
+        "sqlite:///" + os.path.join(os.path.dirname(__file__), "database.db")
     )
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     SQLALCHEMY_ENGINE_OPTIONS = {
