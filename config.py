@@ -76,6 +76,10 @@ class BaseConfig:
     RAZORPAY_KEY_SECRET = os.environ.get("RAZORPAY_KEY_SECRET")
     RAZORPAY_WEBHOOK_SECRET = os.environ.get("RAZORPAY_WEBHOOK_SECRET", "whsec_dev_secret")
 
+    # --- UPI direct payment (free, no gateway account; scan with any UPI app) ---
+    UPI_VPA = os.environ.get("UPI_VPA", "")              # e.g. yourname@okhdfcbank
+    UPI_PAYEE_NAME = os.environ.get("UPI_PAYEE_NAME", "SmartPark ITS")
+
     # --- Observability ---
     SENTRY_DSN = os.environ.get("SENTRY_DSN")
     LOG_LEVEL = os.environ.get("LOG_LEVEL", "INFO")

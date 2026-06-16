@@ -86,9 +86,14 @@ def receipt(booking_id):
     qr = notification_service.receipt_qr_data_uri(booking)
     payment = booking.payment
     pay_provider = payment_service.get_provider()
+    upi_qr = upi_uri = None
+    if payment and payment.status.value != "paid" and payment_service.upi_enabled():
+        upi_qr = payment_service.upi_qr_data_uri(payment)
+        upi_uri = payment_service.upi_payment_uri(payment)
     return render_template(
         "receipt.html", booking=booking, qr=qr, payment=payment,
         pay_key=pay_provider.public_key, pay_provider=pay_provider.name,
+        upi_qr=upi_qr, upi_uri=upi_uri,
     )
 
 

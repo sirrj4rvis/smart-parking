@@ -9,9 +9,12 @@ Webhook handling is provider-agnostic and enforces two production concerns:
   * signature verification (HMAC-SHA256 over the raw body, constant-time compare)
   * idempotency (each provider event id is recorded and processed at most once)
 """
+import base64
 import hashlib
 import hmac
+import io
 import secrets
+from urllib.parse import quote
 
 from flask import current_app
 
@@ -88,6 +91,34 @@ def create_payment_for_booking(booking: Booking) -> Payment:
     db.session.add(payment)
     db.session.commit()
     return payment
+
+
+def upi_enabled() -> bool:
+    return bool(current_app.config.get("UPI_VPA"))
+
+
+def upi_payment_uri(payment: Payment) -> str:
+    """Build a standard UPI deep link. Scanning it in any UPI app pre-fills the
+    payee VPA and the exact amount (NPCI UPI URI spec)."""
+    vpa = current_app.config["UPI_VPA"]
+    name = current_app.config["UPI_PAYEE_NAME"]
+    note = f"SmartPark booking #{payment.booking_id}"
+    return (
+        f"upi://pay?pa={quote(vpa)}&pn={quote(name)}"
+        f"&am={payment.amount:.2f}&cu=INR&tn={quote(note)}&tr={quote(payment.order_id)}"
+    )
+
+
+def upi_qr_data_uri(payment: Payment) -> str:
+    """Render the UPI payment link as a scannable QR (base64 PNG data-URI)."""
+    try:
+        import qrcode
+    except Exception:  # pragma: no cover
+        return ""
+    img = qrcode.make(upi_payment_uri(payment))
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    return f"data:image/png;base64,{base64.b64encode(buf.getvalue()).decode('ascii')}"
 
 
 def mark_paid(order_id: str, payment_ref: str = None) -> Payment:

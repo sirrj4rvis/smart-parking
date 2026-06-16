@@ -67,6 +67,24 @@ def test_webhook_accepts_valid_signature_and_marks_paid(app, client, db, first_s
     assert db.session.query(Payment).get(payment.id).status == PaymentStatus.paid
 
 
+def test_upi_payment_uri_and_qr(app, db, first_slot, make_user):
+    booking, _ = _completed_booking(app, db, first_slot, make_user)
+    payment = payment_service.create_payment_for_booking(booking)
+    app.config["UPI_VPA"] = "test@okhdfcbank"
+    app.config["UPI_PAYEE_NAME"] = "SmartPark"
+    uri = payment_service.upi_payment_uri(payment)
+    assert uri.startswith("upi://pay?")
+    assert "pa=test%40okhdfcbank" in uri  # VPA url-encoded
+    assert f"am={payment.amount:.2f}" in uri and "cu=INR" in uri
+    assert payment_service.upi_qr_data_uri(payment).startswith("data:image/png;base64,")
+    assert payment_service.upi_enabled() is True
+
+
+def test_upi_disabled_without_vpa(app):
+    app.config["UPI_VPA"] = ""
+    assert payment_service.upi_enabled() is False
+
+
 def test_webhook_idempotent(app, client, db, first_slot, make_user):
     booking, _ = _completed_booking(app, db, first_slot, make_user)
     payment = payment_service.create_payment_for_booking(booking)
